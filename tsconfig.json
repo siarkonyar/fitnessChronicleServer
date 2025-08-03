@@ -1,0 +1,15 @@
+// tsconfig.json
+{
+  "compilerOptions": {
+    "target": "es2022", // Or "es2022" for newer features
+    "module": "commonjs",
+    "rootDir": "./src", // Source files are in src
+    "outDir": "./dist", // Compiled files go to dist
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true, // Very important for type safety!
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*.ts"], // Include all .ts files in src
+  "exclude": ["node_modules"]
+}

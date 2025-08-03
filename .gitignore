@@ -1,0 +1,32 @@
+# Node modules
+node_modules/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# dotenv environment variables
+.env
+.env.*.local
+
+# Firebase service account key (very sensitive!)
+fitnesschronicle-d9080-firebase-adminsdk-fbsvc-cee232a1e9.json
+
+# Output folders
+dist/
+build/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# VSCode settings
+.vscode/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Folder structure dump
+folder-structure.txt

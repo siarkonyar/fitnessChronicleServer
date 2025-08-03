@@ -1,0 +1,127 @@
+// src/trpc/routers/fitness.ts
+import { TRPCError } from '@trpc/server';
+import { router, protectedProcedure } from '../trpc';
+import { z } from 'zod'; // For input validation
+import admin from 'firebase-admin'; // Import Firebase Admin SDK
+
+
+const SetScheme = z.object({
+    reps: z.number().int().positive().optional(), // Number of repetitions
+    weightKg: z.number().positive().optional(), // Weight in kilograms
+    durationSeconds: z.number().int().nonnegative().optional(), // Duration in seconds,
+    distanceM: z.number().positive().optional(), // Distance in meters
+    durationMinutes: z.number().int().positive().optional(), // Duration in minutes
+    steps: z.number().int().nonnegative().optional(), // Number of steps
+    setAmount: z.number().int().positive(), // Set amount (1, 2, 3, etc.)
+});
+
+// Zod schema for a fitness log entry
+const ExerciseLogSchema = z.object({
+    date: z.string().datetime(), // ISO 8601 date string
+    activity: z.string().min(3).max(100),
+    caloriesBurned: z.number().int().optional(),
+    notes: z.string().max(500).optional(),
+    sets: z.array(SetScheme), // Array of exercise sets
+});
+
+const DaySchema = z.object({
+    date: z.string().datetime(), // ISO 8601 date string
+    activities: z.array(ExerciseLogSchema), // Array of exercise logs for the day
+    day: z.array(z.string().min(1).max(20)).optional(), // Optional day name (e.g., "Monday")
+});
+
+// Zod schema for a fitness log entry with an ID (when reading from DB)
+const ExerciseLogWithIdSchema = ExerciseLogSchema.extend({
+    id: z.string(),
+});
+
+export const fitnessRouter = router({
+    // Add a new fitness log for the authenticated user
+
+    addExerciseLog: protectedProcedure
+        .input(ExerciseLogSchema) // Validate input with Zod
+        .mutation(async ({ input, ctx }) => {
+            const { user, firestore } = ctx;
+            const userId = user.uid;
+
+            const newLogRef = firestore.collection('users').doc(userId).collection('fitnessLogs').doc();
+            await newLogRef.set({
+                ...input,
+            });
+        }),
+
+    getExerciseLogByDate: protectedProcedure
+        .input(z.object({ date: z.string().datetime() })) // Validate input with Zod
+        .query(async ({ input, ctx }) => {
+            const { user, firestore } = ctx;
+            const userId = user.uid;
+            const { date } = input;
+
+            const snapshot = await firestore.collection('users').doc(userId).collection('fitnessLogs')
+                .where('date', '==', date)
+                .get();
+        }),
+/*
+    addLog: protectedProcedure
+        .input(FitnessLogSchema) // Validate input with Zod
+        .mutation(async ({ input, ctx }) => {
+            const { user, firestore } = ctx;
+            const userId = user.uid;
+
+            const newLogRef = firestore.collection('users').doc(userId).collection('fitnessLogs').doc();
+            await newLogRef.set({
+                ...input,
+                createdAt: admin.firestore.FieldValue.serverTimestamp(), // Add server timestamp
+            });
+
+            return {
+                id: newLogRef.id,
+                message: 'Fitness log added successfully!',
+            };
+        }),
+
+    // Get all fitness logs for the authenticated user
+    getLogs: protectedProcedure
+        .query(async ({ ctx }) => {
+            const { user, firestore } = ctx;
+            const userId = user.uid;
+
+            const snapshot = await firestore.collection('users').doc(userId).collection('fitnessLogs')
+                .orderBy('date', 'desc') // Order by date, latest first
+                .get();
+
+            const logs = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+            }));
+
+            // You can add validation here for the output if needed, e.g.,
+            // const validatedLogs = z.array(FitnessLogWithIdSchema).parse(logs);
+            // return validatedLogs;
+
+            return logs;
+        }),
+
+    // Get a single fitness log by ID for the authenticated user
+    getLogById: protectedProcedure
+        .input(z.object({ logId: z.string().min(1) }))
+        .query(async ({ input, ctx }) => {
+            const { user, firestore } = ctx;
+            const userId = user.uid;
+            const { logId } = input;
+
+            const doc = await firestore.collection('users').doc(userId).collection('fitnessLogs').doc(logId).get();
+
+            if (!doc.exists) {
+                throw new TRPCError({
+                    code: 'NOT_FOUND',
+                    message: 'Fitness log not found.',
+                });
+            }
+
+            return FitnessLogWithIdSchema.parse({
+                id: doc.id,
+                ...doc.data(),
+            });
+        }), */
+});
