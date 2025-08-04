@@ -12,7 +12,7 @@ pnpm-debug.log*
 .env.*.local
 
 # Firebase service account key (very sensitive!)
-fitnesschronicle-d9080-firebase-adminsdk-fbsvc-cee232a1e9.json
+fitnesschronicle-firebase-adminsdk.json
 
 # Output folders
 dist/

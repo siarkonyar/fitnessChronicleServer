@@ -5,15 +5,34 @@ import { z } from 'zod'; // For input validation
 import admin from 'firebase-admin'; // Import Firebase Admin SDK
 
 
-const SetScheme = z.object({
-    reps: z.number().int().positive().optional(), // Number of repetitions
-    weightKg: z.number().positive().optional(), // Weight in kilograms
-    durationSeconds: z.number().int().nonnegative().optional(), // Duration in seconds,
-    distanceM: z.number().positive().optional(), // Distance in meters
-    durationMinutes: z.number().int().positive().optional(), // Duration in minutes
-    steps: z.number().int().nonnegative().optional(), // Number of steps
-    setAmount: z.number().int().positive(), // Set amount (1, 2, 3, etc.)
-});
+const SetSchema = z.discriminatedUnion("setType", [
+  z.object({
+    setType: z.literal("kg"),
+    value: z.number().positive(),
+    reps: z.number().int().positive().optional(),
+  }),
+  z.object({
+    setType: z.literal("lbs"),
+    value: z.number().positive(),
+    reps: z.number().int().positive().optional(),
+  }),
+  z.object({
+    setType: z.literal("time"),
+    value: z.number().positive(), // time in seconds, for example
+    reps: z.number().int().positive().optional(),
+  }),
+  z.object({
+    setType: z.literal("distance"),
+    value: z.number().positive(), // meters, km, etc.
+    reps: z.number().int().positive().optional(),
+  }),
+  z.object({
+    setType: z.literal("steps"),
+    value: z.number().int().positive(), // whole number of steps
+    reps: z.number().int().positive().optional(),
+  }),
+]);
+
 
 // Zod schema for a fitness log entry
 const ExerciseLogSchema = z.object({
@@ -21,7 +40,7 @@ const ExerciseLogSchema = z.object({
     activity: z.string().min(3).max(100),
     caloriesBurned: z.number().int().optional(),
     notes: z.string().max(500).optional(),
-    sets: z.array(SetScheme), // Array of exercise sets
+    sets: z.array(SetSchema), // Array of exercise sets
 });
 
 const DaySchema = z.object({

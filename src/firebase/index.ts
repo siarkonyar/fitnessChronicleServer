@@ -7,7 +7,7 @@ import path from 'path';
 // Or load it from a secure location.
 // For local development, we'll load it from a file in the project root.
 //TODO - add a .env file to the root of the project and add the service account key there
-const serviceAccountPath = path.resolve(__dirname, process.env.FIREBASE_PATH || '');
+const serviceAccountPath = path.resolve(__dirname, '../../fitnesschronicle-firebase-adminsdk.json');
 
 // Make sure the file exists before trying to initialize
 try {
