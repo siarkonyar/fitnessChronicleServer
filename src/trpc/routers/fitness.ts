@@ -8,31 +8,30 @@ import admin from 'firebase-admin'; // Import Firebase Admin SDK
 const SetSchema = z.discriminatedUnion("setType", [
   z.object({
     setType: z.literal("kg"),
-    value: z.number().positive(),
-    reps: z.number().int().positive().optional(),
+    value: z.string().optional(),
+    reps: z.string().optional(),
   }),
   z.object({
     setType: z.literal("lbs"),
-    value: z.number().positive(),
-    reps: z.number().int().positive().optional(),
+    value: z.string().optional(),
+    reps: z.string().optional(),
   }),
   z.object({
     setType: z.literal("time"),
-    value: z.number().positive(), // time in seconds, for example
-    reps: z.number().int().positive().optional(),
+    value: z.string().optional(), // time in seconds, for example
+    reps: z.string().optional(),
   }),
   z.object({
     setType: z.literal("distance"),
-    value: z.number().positive(), // meters, km, etc.
-    reps: z.number().int().positive().optional(),
+    value: z.string().optional(), // meters, km, etc.
+    reps: z.string().optional(),
   }),
   z.object({
     setType: z.literal("steps"),
-    value: z.number().int().positive(), // whole number of steps
-    reps: z.number().int().positive().optional(),
+    value: z.string().optional(), // whole number of steps
+    reps: z.string().optional(),
   }),
 ]);
-
 
 // Zod schema for a fitness log entry
 const ExerciseLogSchema = z.object({
