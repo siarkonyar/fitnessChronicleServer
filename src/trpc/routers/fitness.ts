@@ -78,6 +78,15 @@ export const fitnessRouter = router({
             const snapshot = await firestore.collection('users').doc(userId).collection('fitnessLogs')
                 .where('date', '==', date)
                 .get();
+
+            const logs = snapshot.docs.map(doc => {
+                return ExerciseLogWithIdSchema.parse({
+                    id: doc.id,
+                    ...doc.data(),
+                });
+            });
+
+            return logs;
         }),
 /*
     addLog: protectedProcedure
