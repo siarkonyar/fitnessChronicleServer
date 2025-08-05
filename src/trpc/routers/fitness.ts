@@ -35,7 +35,7 @@ const SetSchema = z.discriminatedUnion("setType", [
 
 // Zod schema for a fitness log entry
 const ExerciseLogSchema = z.object({
-    date: z.string().datetime(), // ISO 8601 date string
+    date: z.string().date(), // ISO 8601 date string
     activity: z.string().min(3).max(100),
     caloriesBurned: z.number().int().optional(),
     notes: z.string().max(500).optional(),
@@ -43,7 +43,7 @@ const ExerciseLogSchema = z.object({
 });
 
 const DaySchema = z.object({
-    date: z.string().datetime(), // ISO 8601 date string
+    date: z.string().date(), // ISO 8601 date string
     activities: z.array(ExerciseLogSchema), // Array of exercise logs for the day
     day: z.array(z.string().min(1).max(20)).optional(), // Optional day name (e.g., "Monday")
 });
@@ -69,7 +69,7 @@ export const fitnessRouter = router({
         }),
 
     getExerciseLogByDate: protectedProcedure
-        .input(z.object({ date: z.string().datetime() })) // Validate input with Zod
+        .input(z.object({ date: z.string().date() })) // Validate input with Zod
         .query(async ({ input, ctx }) => {
             const { user, firestore } = ctx;
             const userId = user.uid;
@@ -87,6 +87,30 @@ export const fitnessRouter = router({
             });
 
             return logs;
+        }),
+
+    editExerciseLog: protectedProcedure
+        .input(z.object({
+            logId: z.string().min(1),
+            data: ExerciseLogSchema, // Validate the data to update
+        }))
+        .mutation(async ({ input, ctx }) => {
+            const { user, firestore } = ctx;
+            const userId = user.uid;
+            const { logId, data } = input;
+            const logRef = firestore.collection('users').doc(userId).collection('fitnessLogs').doc(logId);
+            const logDoc = await logRef.get();
+            if (!logDoc.exists) {
+                throw new TRPCError({
+                    code: 'NOT_FOUND',
+                    message: 'Fitness log not found.',
+                });
+            }
+            await logRef.update(data);
+            return {
+                id: logId,
+                message: 'Fitness log updated successfully!',
+            };
         }),
 /*
     addLog: protectedProcedure
