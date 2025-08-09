@@ -89,6 +89,53 @@ export const fitnessRouter = router({
             return logs;
         }),
 
+    getExerciseLogsByMonth : protectedProcedure
+        .input(z.object({ month: z.string() }))
+        .query(async ({ input, ctx }) => {
+          const { user, firestore } = ctx;
+          const userId = user.uid;
+          const { month } = input;  // e.g. "2025-08"
+
+          // Get start date of the month: "2025-08-01"
+          const startDate = `${month}-01`;
+
+          // Calculate last day of the month:
+          const [year, monthNum] = month.split('-').map(Number);
+          // JS months are 0-based, so subtract 1, then create a date for the next month day 0 which is last day of the previous month
+          const lastDay = new Date(year, monthNum, 0).getDate();
+
+          const endDate = `${month}-${lastDay.toString().padStart(2, '0')}`; // e.g. "2025-08-31"
+
+          const snapshot = await firestore
+            .collection('users')
+            .doc(userId)
+            .collection('fitnessLogs')
+            .where('date', '>=', startDate)
+            .where('date', '<=', endDate)
+            .get();
+
+          const logs = snapshot.docs.map(doc => {
+            return ExerciseLogWithIdSchema.parse({
+                id: doc.id,
+                ...doc.data(),
+            });
+          });
+
+    // Extract unique dates from logs
+          const uniqueDatesSet = new Set<string>();
+          logs.forEach(log => {
+            if (log.date) uniqueDatesSet.add(log.date);
+          });
+
+          const uniqueDates = Array.from(uniqueDatesSet).sort(); // Sort ascending
+
+          return {
+            logs,
+            uniqueDates,
+          };
+        }),
+
+
     editExerciseLog: protectedProcedure
         .input(z.object({
             logId: z.string().min(1),

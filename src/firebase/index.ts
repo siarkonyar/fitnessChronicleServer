@@ -11,10 +11,21 @@ const serviceAccountPath = path.resolve(__dirname, '../../fitnesschronicle-fireb
 
 // Make sure the file exists before trying to initialize
 try {
-    const serviceAccount = require(serviceAccountPath);
+    const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+
+    if (!serviceAccount) {
+        throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON environment variable is not set.');
+    }
+
+    let serviceAccountObj;
+    try {
+        serviceAccountObj = JSON.parse(serviceAccount);
+    } catch (parseError) {
+        throw new Error('Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON: ' + parseError);
+    }
 
     admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount)
+        credential: admin.credential.cert(serviceAccountObj)
     });
 
     console.log('Firebase Admin SDK initialized successfully.');
