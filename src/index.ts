@@ -1,4 +1,8 @@
 // src/index.ts
+// Load environment variables from .env file FIRST
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express from "express";
 import cors from "cors";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
