@@ -10,6 +10,6 @@
     "strict": true, // Very important for type safety!
     "skipLibCheck": true
   },
-  "include": ["src/**/*.ts"], // Include all .ts files in src
+  "include": ["src/**/*.ts", "src/index.js"], // Include all .ts files in src
   "exclude": ["node_modules"]
 }
