@@ -405,7 +405,6 @@ export const fitnessRouter = router({
                     id: assignmentDoc.id,
                     date: assignmentData.date,
                     emojiId: assignmentData.emojiId,
-                    emoji: null,
                 };
             }
 
