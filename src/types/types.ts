@@ -1,0 +1,64 @@
+import z from "zod";
+
+export const SetSchema = z.discriminatedUnion("setType", [
+  z.object({
+    setType: z.literal("kg"),
+    value: z.string().optional(),
+    reps: z.string().optional(),
+  }),
+  z.object({
+    setType: z.literal("lbs"),
+    value: z.string().optional(),
+    reps: z.string().optional(),
+  }),
+  z.object({
+    setType: z.literal("time"),
+    value: z.string().optional(), // time in seconds, for example
+    reps: z.string().optional(),
+  }),
+  z.object({
+    setType: z.literal("distance"),
+    value: z.string().optional(), // meters, km, etc.
+    reps: z.string().optional(),
+  }),
+  z.object({
+    setType: z.literal("steps"),
+    value: z.string().optional(), // whole number of steps
+    reps: z.string().optional(),
+  }),
+]);
+
+// Zod schema for a fitness log entry
+export const ExerciseLogSchema = z.object({
+    date: z.string().date(), // ISO 8601 date string
+    activity: z.string().min(3).max(100),
+    caloriesBurned: z.number().int().optional(),
+    notes: z.string().max(500).optional(),
+    sets: z.array(SetSchema), // Array of exercise sets
+});
+
+export const EmojiSchema = z.object({
+    emoji: z.string().min(1).max(10), // Limit emoji length
+    description: z.string().min(1).max(100), // Add length constraints
+    dates: z.array(z.string().date()).default([]) // Make dates optional with default empty array
+});
+
+export const DaySchema = z.object({
+    date: z.string().date(), // ISO 8601 date string
+    emojiId: z.string().min(1), // Reference to emoji ID instead of full object
+});
+
+// Zod schema for emoji assignments with an ID (when reading from DB)
+export const EmojiWithIdSchema = EmojiSchema.extend({
+    id: z.string(),
+});
+
+// Zod schema for day assignments with an ID (when reading from DB)
+export const DayWithIdSchema = DaySchema.extend({
+    id: z.string(),
+});
+
+// Zod schema for a fitness log entry with an ID (when reading from DB)
+export const ExerciseLogWithIdSchema = ExerciseLogSchema.extend({
+    id: z.string(),
+});

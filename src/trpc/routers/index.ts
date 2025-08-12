@@ -1,5 +1,6 @@
 // src/trpc/routers/index.ts
 import { router } from '../trpc';
+import { emojiRouter } from './emoji';
 import { fitnessRouter } from './fitness'; // Import your specific routers
 
 /**
@@ -8,6 +9,7 @@ import { fitnessRouter } from './fitness'; // Import your specific routers
  */
 export const appRouter = router({
     fitness: fitnessRouter, // Expose fitness operations under `fitness` namespace
+    emoji: emojiRouter,
     // You can add more routers here, e.g.,
     // auth: authRouter,
     // profile: profileRouter,
