@@ -1,7 +1,7 @@
 // src/trpc/routers/fitness.ts
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure } from '../trpc';
-import { z } from 'zod'; // For input validation
+import { emoji, z } from 'zod'; // For input validation
 import admin from 'firebase-admin'; // Import Firebase Admin SDK
 
 
@@ -42,10 +42,25 @@ const ExerciseLogSchema = z.object({
     sets: z.array(SetSchema), // Array of exercise sets
 });
 
+const EmojiSchema = z.object({
+    emoji: z.string().min(1).max(10), // Limit emoji length
+    description: z.string().min(1).max(100), // Add length constraints
+    dates: z.array(z.string().date()).default([]) // Make dates optional with default empty array
+});
+
 const DaySchema = z.object({
     date: z.string().date(), // ISO 8601 date string
-    activities: z.array(ExerciseLogSchema), // Array of exercise logs for the day
-    day: z.array(z.string().min(1).max(20)).optional(), // Optional day name (e.g., "Monday")
+    emojiId: z.string().min(1), // Reference to emoji ID instead of full object
+});
+
+// Zod schema for emoji assignments with an ID (when reading from DB)
+const EmojiWithIdSchema = EmojiSchema.extend({
+    id: z.string(),
+});
+
+// Zod schema for day assignments with an ID (when reading from DB)
+const DayWithIdSchema = DaySchema.extend({
+    id: z.string(),
 });
 
 // Zod schema for a fitness log entry with an ID (when reading from DB)
@@ -65,6 +80,7 @@ export const fitnessRouter = router({
             const newLogRef = firestore.collection('users').doc(userId).collection('fitnessLogs').doc();
             await newLogRef.set({
                 ...input,
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
             });
         }),
 
@@ -135,6 +151,52 @@ export const fitnessRouter = router({
           };
         }),
 
+    getExerciseLogById: protectedProcedure
+        .input(z.object({ logId: z.string().min(1) }))
+        .query(async ({ input, ctx }) => {
+            const { user, firestore } = ctx;
+            const userId = user.uid;
+            const { logId } = input;
+
+            const doc = await firestore.collection('users').doc(userId).collection('fitnessLogs').doc(logId).get();
+
+            if (!doc.exists) {
+                throw new TRPCError({
+                    code: 'NOT_FOUND',
+                    message: 'Fitness log not found.',
+                });
+            }
+
+            return ExerciseLogWithIdSchema.parse({
+                id: doc.id,
+                ...doc.data(),
+            });
+        }),
+
+    deleteExerciseLog: protectedProcedure
+        .input(z.object({ id: z.string().min(1) }))
+        .mutation(async ({ input, ctx }) => {
+            const { user, firestore } = ctx;
+            const userId = user.uid;
+            const { id } = input;
+
+            const logRef = firestore.collection('users').doc(userId).collection('fitnessLogs').doc(id);
+            const logDoc = await logRef.get();
+
+            if (!logDoc.exists) {
+                throw new TRPCError({
+                    code: 'NOT_FOUND',
+                    message: 'Fitness log not found.',
+                });
+            }
+
+            await logRef.delete();
+
+            return {
+                id: id,
+                message: 'Fitness log deleted successfully!',
+            };
+        }),
 
     editExerciseLog: protectedProcedure
         .input(z.object({
@@ -159,56 +221,28 @@ export const fitnessRouter = router({
                 message: 'Fitness log updated successfully!',
             };
         }),
-/*
-    addLog: protectedProcedure
-        .input(FitnessLogSchema) // Validate input with Zod
+
+    addEmoji: protectedProcedure
+        .input(EmojiSchema) // Validate input with Zod
         .mutation(async ({ input, ctx }) => {
             const { user, firestore } = ctx;
             const userId = user.uid;
 
-            const newLogRef = firestore.collection('users').doc(userId).collection('fitnessLogs').doc();
+            const newLogRef = firestore.collection('users').doc(userId).collection('emojis').doc();
             await newLogRef.set({
                 ...input,
-                createdAt: admin.firestore.FieldValue.serverTimestamp(), // Add server timestamp
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
             });
-
-            return {
-                id: newLogRef.id,
-                message: 'Fitness log added successfully!',
-            };
         }),
 
-    // Get all fitness logs for the authenticated user
-    getLogs: protectedProcedure
-        .query(async ({ ctx }) => {
-            const { user, firestore } = ctx;
-            const userId = user.uid;
-
-            const snapshot = await firestore.collection('users').doc(userId).collection('fitnessLogs')
-                .orderBy('date', 'desc') // Order by date, latest first
-                .get();
-
-            const logs = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data(),
-            }));
-
-            // You can add validation here for the output if needed, e.g.,
-            // const validatedLogs = z.array(FitnessLogWithIdSchema).parse(logs);
-            // return validatedLogs;
-
-            return logs;
-        }),
-
-    // Get a single fitness log by ID for the authenticated user
-    getLogById: protectedProcedure
-        .input(z.object({ logId: z.string().min(1) }))
+    getEmojiById: protectedProcedure
+        .input(z.object({ id: z.string().min(1) })) // Validate input with Zod
         .query(async ({ input, ctx }) => {
             const { user, firestore } = ctx;
             const userId = user.uid;
-            const { logId } = input;
+            const { id } = input;
 
-            const doc = await firestore.collection('users').doc(userId).collection('fitnessLogs').doc(logId).get();
+            const doc = await firestore.collection('users').doc(userId).collection('emojis').doc(id).get();
 
             if (!doc.exists) {
                 throw new TRPCError({
@@ -217,9 +251,207 @@ export const fitnessRouter = router({
                 });
             }
 
-            return FitnessLogWithIdSchema.parse({
+            return EmojiWithIdSchema.parse({
                 id: doc.id,
                 ...doc.data(),
             });
-        }), */
+        }),
+
+    getAllEmojis: protectedProcedure
+        .query(async ({ ctx }) => {
+            const { user, firestore } = ctx;
+            const userId = user.uid;
+
+            const snapshot = await firestore.collection('users').doc(userId).collection('emojis')
+                .orderBy('createdAt', 'desc')
+                .get();
+
+            const emojis = snapshot.docs.map(doc => {
+                return EmojiWithIdSchema.parse({
+                    id: doc.id,
+                    ...doc.data(),
+                });
+            });
+
+            return emojis;
+        }),
+
+    deleteEmoji: protectedProcedure
+        .input(z.object({ id: z.string().min(1) }))
+        .mutation(async ({ input, ctx }) => {
+            const { user, firestore } = ctx;
+            const userId = user.uid;
+            const { id } = input;
+
+            const logRef = firestore.collection('users').doc(userId).collection('emojis').doc(id);
+            const logDoc = await logRef.get();
+
+            if (!logDoc.exists) {
+                throw new TRPCError({
+                    code: 'NOT_FOUND',
+                    message: 'Fitness log not found.',
+                });
+            }
+
+            await logRef.delete();
+
+            return {
+                id: id,
+                message: 'Emoji deleted successfully!',
+            };
+        }),
+
+    asignEmojiToDay: protectedProcedure
+        .input(DaySchema) // Use the updated DaySchema
+        .mutation(async ({ input, ctx }) => {
+            const { user, firestore } = ctx;
+            const userId = user.uid;
+            const { date, emojiId } = input;
+
+            // First, check if the emoji exists
+            const emojiRef = firestore.collection('users').doc(userId).collection('emojis').doc(emojiId);
+            const emojiDoc = await emojiRef.get();
+
+            if (!emojiDoc.exists) {
+                throw new TRPCError({
+                    code: 'NOT_FOUND',
+                    message: 'Emoji not found.',
+                });
+            }
+
+            // Check if there's already an assignment for this date
+            const existingAssignmentSnapshot = await firestore
+                .collection('users')
+                .doc(userId)
+                .collection('dayAssignments')
+                .where('date', '==', date)
+                .limit(1)
+                .get();
+
+            let assignmentId: string;
+            let isUpdate = false;
+
+            if (!existingAssignmentSnapshot.empty) {
+                // Update existing assignment
+                const existingDoc = existingAssignmentSnapshot.docs[0];
+                assignmentId = existingDoc.id;
+                isUpdate = true;
+
+                await existingDoc.ref.update({
+                    emojiId: emojiId,
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+            } else {
+                // Create new assignment
+                const newAssignmentRef = firestore
+                    .collection('users')
+                    .doc(userId)
+                    .collection('dayAssignments')
+                    .doc();
+
+                assignmentId = newAssignmentRef.id;
+
+                await newAssignmentRef.set({
+                    date: date,
+                    emojiId: emojiId,
+                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+            }
+
+            return {
+                id: assignmentId,
+                date: date,
+                emojiId: emojiId,
+                message: isUpdate
+                    ? 'Emoji assignment updated successfully!'
+                    : 'Emoji assigned to day successfully!',
+            };
+        }),
+
+    getEmojiAsignmentByDate: protectedProcedure
+        .input(z.object({ date: z.string().date() }))
+        .query(async ({ input, ctx }) => {
+            const { user, firestore } = ctx;
+            const userId = user.uid;
+            const { date } = input;
+
+            // Find the assignment for this date
+            const assignmentSnapshot = await firestore
+                .collection('users')
+                .doc(userId)
+                .collection('dayAssignments')
+                .where('date', '==', date)
+                .limit(1)
+                .get();
+
+            if (assignmentSnapshot.empty) {
+                return null; // No assignment found for this date
+            }
+
+            const assignmentDoc = assignmentSnapshot.docs[0];
+            const assignmentData = assignmentDoc.data();
+
+            if (!assignmentData) {
+                return null;
+            }
+
+            // Get the full emoji data
+            const emojiRef = firestore.collection('users').doc(userId).collection('emojis').doc(assignmentData.emojiId);
+            const emojiDoc = await emojiRef.get();
+
+            if (!emojiDoc.exists) {
+                // Emoji was deleted, return assignment without emoji data
+                return {
+                    id: assignmentDoc.id,
+                    date: assignmentData.date,
+                    emojiId: assignmentData.emojiId,
+                    emoji: null,
+                };
+            }
+
+            const emojiData = emojiDoc.data();
+
+            return {
+                id: assignmentDoc.id,
+                date: assignmentData.date,
+                emojiId: assignmentData.emojiId,
+                emoji: emojiData,
+            };
+        }),
+
+    deleteAssignment: protectedProcedure
+        .input(z.object({ date: z.string().date() }))
+        .mutation(async ({ input, ctx }) => {
+            const { user, firestore } = ctx;
+            const userId = user.uid;
+            const { date } = input;
+
+            // Find the assignment for this date
+            const assignmentSnapshot = await firestore
+                .collection('users')
+                .doc(userId)
+                .collection('dayAssignments')
+                .where('date', '==', date)
+                .limit(1)
+                .get();
+
+            if (assignmentSnapshot.empty) {
+                throw new TRPCError({
+                    code: 'NOT_FOUND',
+                    message: 'No emoji assignment found for this date.',
+                });
+            }
+
+            const assignmentDoc = assignmentSnapshot.docs[0];
+            const assignmentId = assignmentDoc.id;
+
+            // Delete the assignment
+            await assignmentDoc.ref.delete();
+
+            return {
+                id: assignmentId,
+                date: date,
+                message: 'Emoji assignment deleted successfully!',
+            };
+        }),
 });
