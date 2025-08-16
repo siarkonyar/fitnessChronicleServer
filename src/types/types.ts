@@ -51,17 +51,14 @@ export const DaySchema = z.object({
 // Zod schema for emoji assignments with an ID (when reading from DB)
 export const EmojiWithIdSchema = EmojiSchema.extend({
     id: z.string(),
-    createdAt: z.string().date(),
 });
 
 // Zod schema for day assignments with an ID (when reading from DB)
 export const DayWithIdSchema = DaySchema.extend({
     id: z.string(),
-    createdAt: z.string().date(),
 });
 
 // Zod schema for a fitness log entry with an ID (when reading from DB)
 export const ExerciseLogWithIdSchema = ExerciseLogSchema.extend({
     id: z.string(),
-    createdAt: z.string().date(), // ISO 8601 date string for created date
 });
