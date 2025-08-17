@@ -1,4 +1,12 @@
 import z from "zod";
+import { Timestamp } from 'firebase-admin/firestore';
+
+const FirestoreTimestampSchema = z.custom<Timestamp>(
+    (val) => val instanceof Timestamp,
+    {
+        message: "Expected a Firebase Firestore Timestamp object",
+    }
+);
 
 export const SetSchema = z.discriminatedUnion("setType", [
   z.object({
@@ -35,17 +43,20 @@ export const ExerciseLogSchema = z.object({
     caloriesBurned: z.number().int().optional(),
     notes: z.string().max(500).optional(),
     sets: z.array(SetSchema), // Array of exercise sets
+    createdAt: FirestoreTimestampSchema.optional(),
 });
 
 export const EmojiSchema = z.object({
     emoji: z.string().min(1).max(10), // Limit emoji length
     description: z.string().min(1).max(100), // Add length constraints
-    dates: z.array(z.string().date()).default([]) // Make dates optional with default empty array
+    dates: z.array(z.string().date()).default([]), // Make dates optional with default empty array
+    createdAt: FirestoreTimestampSchema.optional(),
 });
 
 export const DaySchema = z.object({
     date: z.string().date(), // ISO 8601 date string
     emojiId: z.string().min(1), // Reference to emoji ID instead of full object
+    createdAt: FirestoreTimestampSchema.optional(),
 });
 
 // Zod schema for emoji assignments with an ID (when reading from DB)
