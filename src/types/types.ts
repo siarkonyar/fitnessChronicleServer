@@ -59,6 +59,11 @@ export const DaySchema = z.object({
     createdAt: FirestoreTimestampSchema.optional(),
 });
 
+export const ExerciseNameListSchema = z.object({
+    name: z.string(),
+    createdAt: FirestoreTimestampSchema.optional(),
+})
+
 // Zod schema for emoji assignments with an ID (when reading from DB)
 export const EmojiWithIdSchema = EmojiSchema.extend({
     id: z.string(),
@@ -71,5 +76,9 @@ export const DayWithIdSchema = DaySchema.extend({
 
 // Zod schema for a fitness log entry with an ID (when reading from DB)
 export const ExerciseLogWithIdSchema = ExerciseLogSchema.extend({
+    id: z.string(),
+});
+
+export const ExerciseNameListWithIdSchema = ExerciseNameListSchema.extend({
     id: z.string(),
 });

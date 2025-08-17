@@ -3,7 +3,7 @@ import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure } from '../trpc';
 import { emoji, z } from 'zod'; // For input validation
 import admin from 'firebase-admin'; // Import Firebase Admin SDK
-import { DaySchema, EmojiSchema, EmojiWithIdSchema, ExerciseLogSchema, ExerciseLogWithIdSchema } from '../../types/types';
+import { DaySchema, EmojiSchema, EmojiWithIdSchema, ExerciseLogSchema, ExerciseLogWithIdSchema, ExerciseNameListWithIdSchema } from '../../types/types';
 
 export const fitnessRouter = router({
     // Add a new fitness log for the authenticated user
@@ -13,12 +13,38 @@ export const fitnessRouter = router({
         .mutation(async ({ input, ctx }) => {
             const { user, firestore } = ctx;
             const userId = user.uid;
+            const exerciseName = input.activity
 
             const newLogRef = firestore.collection('users').doc(userId).collection('fitnessLogs').doc();
+
             await newLogRef.set({
                 ...input,
                 createdAt: admin.firestore.FieldValue.serverTimestamp(),
             });
+
+            const namesRef = firestore
+              .collection('users')
+              .doc(userId)
+              .collection('exerciseNames');
+
+            // Query to check if exerciseName already exists
+            const snapshot = await namesRef
+                .where('exerciseName', '==', exerciseName)
+                .limit(1)
+                .get();
+
+            if (!snapshot.empty) {
+              // Already exists
+              console.log('Exercise name already exists');
+            } else {
+              // Add new exercise name
+              const newNameRef = namesRef.doc();
+              await newNameRef.set({
+                exerciseName,
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+              });
+              console.log('Exercise name added successfully');
+            }
         }),
 
     getExerciseLogByDate: protectedProcedure
@@ -157,5 +183,59 @@ export const fitnessRouter = router({
                 id: logId,
                 message: 'Fitness log updated successfully!',
             };
+        }),
+
+    getAllExerciseNames : protectedProcedure
+        .query(async ({ ctx }) => {
+          const { user, firestore } = ctx;
+          const userId = user.uid;
+
+          const snapshot = await firestore
+            .collection('users')
+            .doc(userId)
+            .collection('exerciseNames')
+            .get();
+
+          const names = snapshot.docs.map(doc => {
+            return ExerciseNameListWithIdSchema.parse({
+                id: doc.id,
+                ...doc.data(),
+            });
+          });
+
+          return {
+            names,
+          };
+        }),
+
+    getLatestExerciseByName : protectedProcedure
+        .input(z.object({ name: z.string().min(1) }))
+        .query(async ({ input, ctx }) => {
+            const { user, firestore } = ctx;
+            const userId = user.uid;
+            const { name } = input;
+
+            // Query for fitness logs with the given activity name, ordered by createdAt descending
+            const snapshot = await firestore
+                .collection('users')
+                .doc(userId)
+                .collection('fitnessLogs')
+                .where('activity', '==', name)
+                .orderBy('createdAt', 'desc')
+                .limit(1)
+                .get();
+
+            if (snapshot.empty) {
+                throw new TRPCError({
+                    code: 'NOT_FOUND',
+                    message: `No exercise logs found with name: ${name}`,
+                });
+            }
+
+            const doc = snapshot.docs[0];
+            return ExerciseLogWithIdSchema.parse({
+                id: doc.id,
+                ...doc.data(),
+            });
         }),
 });
