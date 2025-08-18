@@ -215,14 +215,34 @@ export const fitnessRouter = router({
             const userId = user.uid;
             const { name } = input;
 
-            // Query for fitness logs with the given activity name, ordered by createdAt descending
+            // Prefer a direct query on createdAt (server timestamp set in addExerciseLog)
+            try {
+                const orderedSnapshot = await firestore
+                    .collection('users')
+                    .doc(userId)
+                    .collection('fitnessLogs')
+                    .where('activity', '==', name)
+                    .orderBy('createdAt', 'desc')
+                    .limit(1)
+                    .get();
+
+                if (!orderedSnapshot.empty) {
+                    const doc = orderedSnapshot.docs[0];
+                    return ExerciseLogWithIdSchema.parse({
+                        id: doc.id,
+                        ...doc.data(),
+                    });
+                }
+            } catch (e) {
+                // Fallback below if index missing or other query issues
+            }
+
+            // Fallback: fetch and sort in memory using createdAt then createdBy
             const snapshot = await firestore
                 .collection('users')
                 .doc(userId)
                 .collection('fitnessLogs')
                 .where('activity', '==', name)
-                .orderBy('createdAt', 'desc')
-                .limit(1)
                 .get();
 
             if (snapshot.empty) {
@@ -232,10 +252,24 @@ export const fitnessRouter = router({
                 });
             }
 
-            const doc = snapshot.docs[0];
+            const docs = snapshot.docs.map(doc => {
+                const data = doc.data() as any;
+                const createdAtTs = data.createdAt?.toDate?.();
+                const createdByTs = data.createdBy?.toDate?.();
+                const createdTime = (createdAtTs instanceof Date
+                    ? createdAtTs
+                    : createdByTs instanceof Date
+                        ? createdByTs
+                        : new Date(0));
+                return { id: doc.id, data, createdTime };
+            });
+
+            docs.sort((a, b) => b.createdTime.getTime() - a.createdTime.getTime());
+
+            const latestDoc = docs[0];
             return ExerciseLogWithIdSchema.parse({
-                id: doc.id,
-                ...doc.data(),
+                id: latestDoc.id,
+                ...latestDoc.data,
             });
         }),
 });
