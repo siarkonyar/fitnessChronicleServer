@@ -29,7 +29,7 @@ export const fitnessRouter = router({
 
             // Query to check if exerciseName already exists
             const snapshot = await namesRef
-                .where('exerciseName', '==', exerciseName)
+                .where('name', '==', exerciseName)
                 .limit(1)
                 .get();
 
@@ -40,7 +40,7 @@ export const fitnessRouter = router({
               // Add new exercise name
               const newNameRef = namesRef.doc();
               await newNameRef.set({
-                exerciseName,
+                name: exerciseName,
                 createdAt: admin.firestore.FieldValue.serverTimestamp(),
               });
               console.log('Exercise name added successfully');
