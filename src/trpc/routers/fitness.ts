@@ -4,6 +4,11 @@ import { router, protectedProcedure } from '../trpc';
 import { emoji, z } from 'zod'; // For input validation
 import admin from 'firebase-admin'; // Import Firebase Admin SDK
 import { DaySchema, EmojiSchema, EmojiWithIdSchema, ExerciseLogSchema, ExerciseLogWithIdSchema, ExerciseNameListWithIdSchema } from '../../types/types';
+import exerciseNamesMaster from '../../types/exercise_names_master.json';
+
+const MASTER_EXERCISE_NAMES_SET = new Set(
+  (exerciseNamesMaster as string[]).map((name) => name.toLowerCase())
+);
 
 export const fitnessRouter = router({
     // Add a new fitness log for the authenticated user
@@ -22,28 +27,36 @@ export const fitnessRouter = router({
                 createdAt: admin.firestore.FieldValue.serverTimestamp(),
             });
 
-            const namesRef = firestore
-              .collection('users')
-              .doc(userId)
-              .collection('exerciseNames');
+            const shouldSkipAdd = MASTER_EXERCISE_NAMES_SET.has(
+              exerciseName.trim().toLowerCase()
+            );
 
-            // Query to check if exerciseName already exists
-            const snapshot = await namesRef
-                .where('name', '==', exerciseName)
-                .limit(1)
-                .get();
-
-            if (!snapshot.empty) {
-              // Already exists
-              console.log('Exercise name already exists');
+            if (shouldSkipAdd) {
+              console.log('Exercise name is in master list; skipping add');
             } else {
-              // Add new exercise name
-              const newNameRef = namesRef.doc();
-              await newNameRef.set({
-                name: exerciseName,
-                createdAt: admin.firestore.FieldValue.serverTimestamp(),
-              });
-              console.log('Exercise name added successfully');
+              const namesRef = firestore
+                .collection('users')
+                .doc(userId)
+                .collection('exerciseNames');
+
+              // Query to check if exerciseName already exists
+              const snapshot = await namesRef
+                  .where('name', '==', exerciseName)
+                  .limit(1)
+                  .get();
+
+              if (!snapshot.empty) {
+                // Already exists
+                console.log('Exercise name already exists');
+              } else {
+                // Add new exercise name
+                const newNameRef = namesRef.doc();
+                await newNameRef.set({
+                  name: exerciseName,
+                  createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+                console.log('Exercise name added successfully');
+              }
             }
         }),
 
@@ -215,6 +228,32 @@ export const fitnessRouter = router({
             const userId = user.uid;
             const { name } = input;
 
+            const orderedSnapshot = await firestore
+                .collection('users')
+                .doc(userId)
+                .collection('fitnessLogs')
+                .where('activity', '==', name)
+                .orderBy('createdAt', 'desc')
+                .limit(1)
+                .get();
+
+            if (!orderedSnapshot.empty) {
+                const doc = orderedSnapshot.docs[0];
+                return ExerciseLogWithIdSchema.parse({
+                    id: doc.id,
+                    ...doc.data(),
+                });
+            }
+
+            return null;
+        }),
+    /* getLatestExerciseByName : protectedProcedure
+        .input(z.object({ name: z.string().min(1) }))
+        .query(async ({ input, ctx }) => {
+            const { user, firestore } = ctx;
+            const userId = user.uid;
+            const { name } = input;
+
             // Prefer a direct query on createdAt (server timestamp set in addExerciseLog)
             try {
                 const orderedSnapshot = await firestore
@@ -234,7 +273,7 @@ export const fitnessRouter = router({
                     });
                 }
             } catch (e) {
-                // Fallback below if index missing or other query issues
+                console.log(e)
             }
 
             // Fallback: fetch and sort in memory using createdAt then createdBy
@@ -271,5 +310,43 @@ export const fitnessRouter = router({
                 id: latestDoc.id,
                 ...latestDoc.data,
             });
+        }), */
+
+
+    deleteExerciseName : protectedProcedure
+        .input(z.object({ name: z.string().min(1) }))
+        .mutation(async ({ input, ctx }) => {
+            const { user, firestore } = ctx;
+            const userId = user.uid;
+            const { name } = input;
+
+            const snapshot = await firestore
+                .collection('users')
+                .doc(userId)
+                .collection('exerciseNames')
+                .where('name', '==', name)
+                .get();
+
+            if (snapshot.empty) {
+                throw new TRPCError({
+                    code: 'NOT_FOUND',
+                    message: 'Exercise name not found.',
+                });
+            }
+
+            const batch = firestore.batch();
+            const deletedIds: string[] = [];
+
+            snapshot.docs.forEach((doc) => {
+                batch.delete(doc.ref);
+                deletedIds.push(doc.id);
+            });
+
+            await batch.commit();
+
+            return {
+                deletedIds,
+                message: 'Exercise name deleted successfully!',
+            };
         }),
 });

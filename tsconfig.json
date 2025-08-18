@@ -6,6 +6,8 @@
     "rootDir": "./src", // Source files are in src
     "outDir": "./dist", // Compiled files go to dist
     "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "moduleResolution": "node",
     "forceConsistentCasingInFileNames": true,
     "strict": true, // Very important for type safety!
     "skipLibCheck": true
