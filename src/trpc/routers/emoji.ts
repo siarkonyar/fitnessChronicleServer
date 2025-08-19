@@ -59,6 +59,8 @@ export const emojiRouter = router({
 
             return emojis;
         }),
+
+
     getAllEmojisFromMonth: protectedProcedure
     .input(z.object({
         date: z.string().regex(/^\d{4}-\d{2}$/, 'Date must be in YYYY-MM format')
@@ -138,6 +140,45 @@ export const emojiRouter = router({
                 id: id,
                 message: 'Emoji deleted successfully!',
             };
+        }),
+
+    editEmoji: protectedProcedure
+        .input(EmojiWithIdSchema)
+        .mutation(async ({ input, ctx }) => {
+            const { user, firestore } = ctx;
+            const userId = user.uid;
+            const { id, emoji, description } = input;
+
+            const emojiRef = firestore.collection('users').doc(userId).collection('emojis').doc(id);
+            const emojiDoc = await emojiRef.get();
+
+            if (!emojiDoc.exists) {
+                throw new TRPCError({
+                    code: 'NOT_FOUND',
+                    message: 'Emoji not found.',
+                });
+            }
+
+            const updateData: Record<string, unknown> = {
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            };
+
+            if (emoji !== undefined) {
+                updateData.emoji = emoji;
+            }
+
+            if (description !== undefined) {
+                updateData.description = description;
+            }
+
+            await emojiRef.update(updateData);
+
+            const updatedDoc = await emojiRef.get();
+
+            return EmojiWithIdSchema.parse({
+                id: updatedDoc.id,
+                ...updatedDoc.data(),
+            });
         }),
 
     asignEmojiToDay: protectedProcedure

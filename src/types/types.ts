@@ -49,7 +49,7 @@ export const ExerciseLogSchema = z.object({
 export const EmojiSchema = z.object({
     emoji: z.string().min(1).max(10), // Limit emoji length
     description: z.string().min(1).max(100), // Add length constraints
-    dates: z.array(z.string().date()).default([]), // Make dates optional with default empty array
+    dates: z.array(z.string().date()).default([]).optional(), // Make dates optional with default empty array
     createdAt: FirestoreTimestampSchema.optional(),
 });
 
