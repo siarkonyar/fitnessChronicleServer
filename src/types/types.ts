@@ -46,16 +46,17 @@ export const ExerciseLogSchema = z.object({
     createdAt: FirestoreTimestampSchema.optional(),
 });
 
-export const EmojiSchema = z.object({
-    emoji: z.string().min(1).max(10), // Limit emoji length
+export const LabelSchema = z.object({
+    label: z.string().min(1).max(10), // Limit emoji length
     description: z.string().min(1).max(100), // Add length constraints
     dates: z.array(z.string().date()).default([]).optional(), // Make dates optional with default empty array
+    muscleGroups: z.array(z.string()).default([]).optional(),
     createdAt: FirestoreTimestampSchema.optional(),
 });
 
 export const DaySchema = z.object({
     date: z.string().date(), // ISO 8601 date string
-    emojiId: z.string().min(1), // Reference to emoji ID instead of full object
+    labelId: z.string().min(1), // Reference to emoji ID instead of full object
     createdAt: FirestoreTimestampSchema.optional(),
 });
 
@@ -65,7 +66,7 @@ export const ExerciseNameListSchema = z.object({
 })
 
 // Zod schema for emoji assignments with an ID (when reading from DB)
-export const EmojiWithIdSchema = EmojiSchema.extend({
+export const LabelWithIdSchema = LabelSchema.extend({
     id: z.string(),
 });
 

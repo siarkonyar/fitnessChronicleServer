@@ -3,7 +3,7 @@ import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure } from '../trpc';
 import { emoji, z } from 'zod'; // For input validation
 import admin from 'firebase-admin'; // Import Firebase Admin SDK
-import { DaySchema, EmojiSchema, EmojiWithIdSchema, ExerciseLogSchema, ExerciseLogWithIdSchema, ExerciseNameListWithIdSchema } from '../../types/types';
+import { ExerciseLogSchema, ExerciseLogWithIdSchema, ExerciseNameListWithIdSchema } from '../../types/types';
 import exerciseNamesMaster from '../../types/exercise_names_master.json';
 
 const MASTER_EXERCISE_NAMES_SET = new Set(

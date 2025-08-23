@@ -1,32 +1,32 @@
 // src/trpc/routers/fitness.ts
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure } from '../trpc';
-import { emoji, z } from 'zod'; // For input validation
+import { z } from 'zod'; // For input validation
 import admin from 'firebase-admin'; // Import Firebase Admin SDK
-import { DaySchema, EmojiSchema, EmojiWithIdSchema, ExerciseLogSchema, ExerciseLogWithIdSchema } from '../../types/types';
+import { DaySchema, LabelSchema, LabelWithIdSchema, ExerciseLogSchema, ExerciseLogWithIdSchema } from '../../types/types';
 
-export const emojiRouter = router({
-    addEmoji: protectedProcedure
-        .input(EmojiSchema) // Validate input with Zod
+export const labelRouter = router({
+    addLabel: protectedProcedure
+        .input(LabelSchema) // Validate input with Zod
         .mutation(async ({ input, ctx }) => {
             const { user, firestore } = ctx;
             const userId = user.uid;
 
-            const newLogRef = firestore.collection('users').doc(userId).collection('emojis').doc();
+            const newLogRef = firestore.collection('users').doc(userId).collection('labels').doc();
             await newLogRef.set({
                 ...input,
                 createdAt: admin.firestore.FieldValue.serverTimestamp(),
             });
         }),
 
-    getEmojiById: protectedProcedure
+    getLabelById: protectedProcedure
         .input(z.object({ id: z.string().min(1) })) // Validate input with Zod
         .query(async ({ input, ctx }) => {
             const { user, firestore } = ctx;
             const userId = user.uid;
             const { id } = input;
 
-            const doc = await firestore.collection('users').doc(userId).collection('emojis').doc(id).get();
+            const doc = await firestore.collection('users').doc(userId).collection('labels').doc(id).get();
 
             if (!doc.exists) {
                 throw new TRPCError({
@@ -35,33 +35,33 @@ export const emojiRouter = router({
                 });
             }
 
-            return EmojiWithIdSchema.parse({
+            return LabelWithIdSchema.parse({
                 id: doc.id,
                 ...doc.data(),
             });
         }),
 
-    getAllEmojis: protectedProcedure
+    getAllLabels: protectedProcedure
         .query(async ({ ctx }) => {
             const { user, firestore } = ctx;
             const userId = user.uid;
 
-            const snapshot = await firestore.collection('users').doc(userId).collection('emojis')
+            const snapshot = await firestore.collection('users').doc(userId).collection('labels')
                 .orderBy('createdAt', 'desc')
                 .get();
 
-            const emojis = snapshot.docs.map(doc => {
-                return EmojiWithIdSchema.parse({
+            const labels = snapshot.docs.map(doc => {
+                return LabelWithIdSchema.parse({
                     id: doc.id,
                     ...doc.data(),
                 });
             });
 
-            return emojis;
+            return labels;
         }),
 
 
-    getAllEmojisFromMonth: protectedProcedure
+    getAllLabelsFromMonth: protectedProcedure
     .input(z.object({
         date: z.string().regex(/^\d{4}-\d{2}$/, 'Date must be in YYYY-MM format')
     }))
@@ -86,45 +86,45 @@ export const emojiRouter = router({
 
         const assignments = assignmentsSnapshot.docs.map(doc => ({
             id: doc.id,
-            ...(doc.data() as { date: string; emojiId: string })
+            ...(doc.data() as { date: string; labelId: string })
         }));
 
         if (assignments.length === 0) {
             return [];
         }
 
-        // Fetch emojis for all used IDs
-        const emojiMap: Record<string, string> = {};
-        const emojiDocs = await Promise.all(
-            [...new Set(assignments.map(a => a.emojiId))]
-                .map(emojiId =>
-                    firestore.collection('users').doc(userId).collection('emojis').doc(emojiId).get()
+        // Fetch labels for all used IDs
+        const labelMap: Record<string, string> = {};
+        const labelDocs = await Promise.all(
+            [...new Set(assignments.map(a => a.labelId))]
+                .map(labelId =>
+                    firestore.collection('users').doc(userId).collection('labels').doc(labelId).get()
                 )
         );
 
-        for (const doc of emojiDocs) {
+        for (const doc of labelDocs) {
             if (doc.exists) {
                 const data = doc.data()!;
-                emojiMap[doc.id] = data.emoji;
+                labelMap[doc.id] = data.label;
             }
         }
 
-        // Return { date, emoji } for each assignment
+        // Return { date, label } for each assignment
         return assignments.map(a => ({
             date: a.date,
-            emoji: emojiMap[a.emojiId] || ""
+            label: labelMap[a.labelId] || ""
         }));
     }),
 
 
-    deleteEmoji: protectedProcedure
+    deleteLabel: protectedProcedure
         .input(z.object({ id: z.string().min(1) }))
         .mutation(async ({ input, ctx }) => {
             const { user, firestore } = ctx;
             const userId = user.uid;
             const { id } = input;
 
-            const logRef = firestore.collection('users').doc(userId).collection('emojis').doc(id);
+            const logRef = firestore.collection('users').doc(userId).collection('labels').doc(id);
             const logDoc = await logRef.get();
 
             if (!logDoc.exists) {
@@ -138,24 +138,24 @@ export const emojiRouter = router({
 
             return {
                 id: id,
-                message: 'Emoji deleted successfully!',
+                message: 'Label deleted successfully!',
             };
         }),
 
-    editEmoji: protectedProcedure
-        .input(EmojiWithIdSchema)
+    editLabel: protectedProcedure
+        .input(LabelWithIdSchema)
         .mutation(async ({ input, ctx }) => {
             const { user, firestore } = ctx;
             const userId = user.uid;
-            const { id, emoji, description } = input;
+            const { id, label, description } = input;
 
-            const emojiRef = firestore.collection('users').doc(userId).collection('emojis').doc(id);
-            const emojiDoc = await emojiRef.get();
+            const labelRef = firestore.collection('users').doc(userId).collection('labels').doc(id);
+            const labelDoc = await labelRef.get();
 
-            if (!emojiDoc.exists) {
+            if (!labelDoc.exists) {
                 throw new TRPCError({
                     code: 'NOT_FOUND',
-                    message: 'Emoji not found.',
+                    message: 'Label not found.',
                 });
             }
 
@@ -163,39 +163,39 @@ export const emojiRouter = router({
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             };
 
-            if (emoji !== undefined) {
-                updateData.emoji = emoji;
+            if (label !== undefined) {
+                updateData.label = label;
             }
 
             if (description !== undefined) {
                 updateData.description = description;
             }
 
-            await emojiRef.update(updateData);
+            await labelRef.update(updateData);
 
-            const updatedDoc = await emojiRef.get();
+            const updatedDoc = await labelRef.get();
 
-            return EmojiWithIdSchema.parse({
+            return LabelWithIdSchema.parse({
                 id: updatedDoc.id,
                 ...updatedDoc.data(),
             });
         }),
 
-    asignEmojiToDay: protectedProcedure
+    asignLabelToDay: protectedProcedure
         .input(DaySchema) // Use the updated DaySchema
         .mutation(async ({ input, ctx }) => {
             const { user, firestore } = ctx;
             const userId = user.uid;
-            const { date, emojiId } = input;
+            const { date, labelId } = input;
 
-            // First, check if the emoji exists
-            const emojiRef = firestore.collection('users').doc(userId).collection('emojis').doc(emojiId);
-            const emojiDoc = await emojiRef.get();
+            // First, check if the label exists
+            const labelRef = firestore.collection('users').doc(userId).collection('labels').doc(labelId);
+            const labelDoc = await labelRef.get();
 
-            if (!emojiDoc.exists) {
+            if (!labelDoc.exists) {
                 throw new TRPCError({
                     code: 'NOT_FOUND',
-                    message: 'Emoji not found.',
+                    message: 'Label not found.',
                 });
             }
 
@@ -210,17 +210,17 @@ export const emojiRouter = router({
 
             let assignmentId: string;
             let isUpdate = false;
-            let previousEmojiId: string | null = null;
+            let previousLabelId: string | null = null;
 
             if (!existingAssignmentSnapshot.empty) {
                 // Update existing assignment
                 const existingDoc = existingAssignmentSnapshot.docs[0];
                 assignmentId = existingDoc.id;
                 isUpdate = true;
-                previousEmojiId = existingDoc.data().emojiId;
+                previousLabelId = existingDoc.data().labelId;
 
                 await existingDoc.ref.update({
-                    emojiId: emojiId,
+                    labelId: labelId,
                     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 });
             } else {
@@ -235,26 +235,26 @@ export const emojiRouter = router({
 
                 await newAssignmentRef.set({
                     date: date,
-                    emojiId: emojiId,
+                    labelId: labelId,
                     createdAt: admin.firestore.FieldValue.serverTimestamp(),
                 });
             }
 
-            // Update the emoji's dates array
-            const emojiData = emojiDoc.data();
-            const currentDates = emojiData?.dates || [];
+            // Update the label's dates array
+            const labelData = labelDoc.data();
+            const currentDates = labelData?.dates || [];
 
             // Add the date if it's not already in the array
             if (!currentDates.includes(date)) {
-                await emojiRef.update({
+                await labelRef.update({
                     dates: admin.firestore.FieldValue.arrayUnion(date)
                 });
             }
 
-            // If this was an update and the previous emoji is different, remove the date from the previous emoji
-            if (isUpdate && previousEmojiId && previousEmojiId !== emojiId) {
-                const previousEmojiRef = firestore.collection('users').doc(userId).collection('emojis').doc(previousEmojiId);
-                await previousEmojiRef.update({
+            // If this was an update and the previous label is different, remove the date from the previous label
+            if (isUpdate && previousLabelId && previousLabelId !== labelId) {
+                const previousLabelRef = firestore.collection('users').doc(userId).collection('labels').doc(previousLabelId);
+                await previousLabelRef.update({
                     dates: admin.firestore.FieldValue.arrayRemove(date)
                 });
             }
@@ -262,14 +262,14 @@ export const emojiRouter = router({
             return {
                 id: assignmentId,
                 date: date,
-                emojiId: emojiId,
+                labelId: labelId,
                 message: isUpdate
-                    ? 'Emoji assignment updated successfully!'
-                    : 'Emoji assigned to day successfully!',
+                    ? 'Label assignment updated successfully!'
+                    : 'Label assigned to day successfully!',
             };
         }),
 
-    getEmojiAsignmentByDate: protectedProcedure
+    getLabelAsignmentByDate: protectedProcedure
         .input(z.object({ date: z.string().date() }))
         .query(async ({ input, ctx }) => {
             const { user, firestore } = ctx;
@@ -296,26 +296,26 @@ export const emojiRouter = router({
                 return null;
             }
 
-            // Get the full emoji data
-            const emojiRef = firestore.collection('users').doc(userId).collection('emojis').doc(assignmentData.emojiId);
-            const emojiDoc = await emojiRef.get();
+            // Get the full label data
+            const labelRef = firestore.collection('users').doc(userId).collection('labels').doc(assignmentData.labelId);
+            const labelDoc = await labelRef.get();
 
-            if (!emojiDoc.exists) {
-                // Emoji was deleted, return assignment without emoji data
+            if (!labelDoc.exists) {
+                // Label was deleted, return assignment without label data
                 return {
                     id: assignmentDoc.id,
                     date: assignmentData.date,
-                    emojiId: assignmentData.emojiId,
+                    labelId: assignmentData.labelId,
                 };
             }
 
-            const emojiData = emojiDoc.data();
+            const labelData = labelDoc.data();
 
             return {
                 id: assignmentDoc.id,
                 date: assignmentData.date,
-                emojiId: assignmentData.emojiId,
-                emoji: emojiData,
+                labelId: assignmentData.labelId,
+                label: labelData,
             };
         }),
 
@@ -338,7 +338,7 @@ export const emojiRouter = router({
             if (assignmentSnapshot.empty) {
                 throw new TRPCError({
                     code: 'NOT_FOUND',
-                    message: 'No emoji assignment found for this date.',
+                    message: 'No label assignment found for this date.',
                 });
             }
 
@@ -351,7 +351,7 @@ export const emojiRouter = router({
             return {
                 id: assignmentId,
                 date: date,
-                message: 'Emoji assignment deleted successfully!',
+                message: 'Label assignment deleted successfully!',
             };
         }),
 });
