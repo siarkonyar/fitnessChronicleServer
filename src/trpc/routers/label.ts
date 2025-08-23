@@ -102,11 +102,45 @@ export const labelRouter = router({
                 )
         );
 
+        // Track assignments to delete (those with non-existent labels)
+        const assignmentsToDelete: string[] = [];
+
         for (const doc of labelDocs) {
             if (doc.exists) {
                 const data = doc.data()!;
                 labelMap[doc.id] = data.label;
+            } else {
+                // Label doesn't exist, mark assignment for deletion
+                assignmentsToDelete.push(doc.id);
             }
+        }
+
+        // Delete assignments with non-existent labels
+        if (assignmentsToDelete.length > 0) {
+            const deletePromises = assignmentsToDelete.map(labelId => {
+                // Find the assignment document that references this labelId
+                const assignmentToDelete = assignments.find(a => a.labelId === labelId);
+                if (assignmentToDelete) {
+                    return firestore
+                        .collection('users')
+                        .doc(userId)
+                        .collection('dayAssignments')
+                        .doc(assignmentToDelete.id)
+                        .delete();
+                }
+                return Promise.resolve();
+            });
+
+            await Promise.all(deletePromises);
+
+            // Remove deleted assignments from the results
+            const validAssignments = assignments.filter(a => !assignmentsToDelete.includes(a.labelId));
+
+            // Return { date, label } for each valid assignment
+            return validAssignments.map(a => ({
+                date: a.date,
+                label: labelMap[a.labelId] || ""
+            }));
         }
 
         // Return { date, label } for each assignment
@@ -301,12 +335,9 @@ export const labelRouter = router({
             const labelDoc = await labelRef.get();
 
             if (!labelDoc.exists) {
-                // Label was deleted, return assignment without label data
-                return {
-                    id: assignmentDoc.id,
-                    date: assignmentData.date,
-                    labelId: assignmentData.labelId,
-                };
+                // Label was deleted, automatically delete the assignment
+                await assignmentDoc.ref.delete();
+                return null; // Return null since the assignment was deleted
             }
 
             const labelData = labelDoc.data();

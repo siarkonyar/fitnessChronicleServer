@@ -9,7 +9,7 @@ import { fitnessRouter } from './fitness'; // Import your specific routers
  */
 export const appRouter = router({
     fitness: fitnessRouter, // Expose fitness operations under `fitness` namespace
-    emoji: labelRouter,
+    label: labelRouter,
     // You can add more routers here, e.g.,
     // auth: authRouter,
     // profile: profileRouter,
