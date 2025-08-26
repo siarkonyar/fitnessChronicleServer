@@ -1,6 +1,7 @@
 // src/firebase/index.ts
 import * as admin from 'firebase-admin';
 import path from 'path';
+import fs from 'fs';
 
 // IMPORTANT: For production, use environment variables for your service account.
 // Example: process.env.FIREBASE_SERVICE_ACCOUNT_KEY
@@ -9,30 +10,39 @@ import path from 'path';
 //TODO - add a .env file to the root of the project and add the service account key there
 const serviceAccountPath = path.resolve(__dirname, '../../fitnesschronicle-firebase-adminsdk.json');
 
-// Make sure the file exists before trying to initialize
+// Make sure a service account is available from env or local file
 try {
-    const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+    let serviceAccountObj: admin.ServiceAccount | undefined;
 
-    if (!serviceAccount) {
-        throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON environment variable is not set.');
-    }
-
-    let serviceAccountObj;
-    try {
-        serviceAccountObj = JSON.parse(serviceAccount);
-    } catch (parseError) {
-        throw new Error('Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON: ' + parseError);
+    const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+    if (serviceAccountJson) {
+        try {
+            serviceAccountObj = JSON.parse(serviceAccountJson);
+        } catch (parseError) {
+            throw new Error('Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON: ' + parseError);
+        }
+    } else if (fs.existsSync(serviceAccountPath)) {
+        const fileContents = fs.readFileSync(serviceAccountPath, 'utf8');
+        try {
+            serviceAccountObj = JSON.parse(fileContents);
+        } catch (parseError) {
+            throw new Error('Failed to parse local service account file: ' + parseError);
+        }
+    } else {
+        throw new Error(
+            'No Firebase service account found. Set FIREBASE_SERVICE_ACCOUNT_JSON or add the JSON to ' +
+            serviceAccountPath
+        );
     }
 
     admin.initializeApp({
-        credential: admin.credential.cert(serviceAccountObj)
+        credential: admin.credential.cert(serviceAccountObj as admin.ServiceAccount)
     });
 
     console.log('Firebase Admin SDK initialized successfully.');
 
 } catch (error) {
     console.error('Failed to load Firebase service account key or initialize Firebase Admin SDK:', error);
-    // In a real app, you might want to exit the process if initialization fails
     process.exit(1);
 }
 

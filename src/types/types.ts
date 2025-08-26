@@ -8,33 +8,12 @@ const FirestoreTimestampSchema = z.custom<Timestamp>(
     }
 );
 
-export const SetSchema = z.discriminatedUnion("setType", [
-  z.object({
-    setType: z.literal("kg"),
-    value: z.string().optional(),
-    reps: z.string().optional(),
-  }),
-  z.object({
-    setType: z.literal("lbs"),
-    value: z.string().optional(),
-    reps: z.string().optional(),
-  }),
-  z.object({
-    setType: z.literal("time"),
-    value: z.string().optional(), // time in seconds, for example
-    reps: z.string().optional(),
-  }),
-  z.object({
-    setType: z.literal("distance"),
-    value: z.string().optional(), // meters, km, etc.
-    reps: z.string().optional(),
-  }),
-  z.object({
-    setType: z.literal("steps"),
-    value: z.string().optional(), // whole number of steps
-    reps: z.string().optional(),
-  }),
-]);
+export const SetSchema = z.object({
+  setType: z.enum(["warmup", "normal", "failure", "drop"]),
+  measure: z.enum(["kg", "lbs", "sec", "distance", "step"]),
+  value: z.string().optional(),
+  reps: z.string().optional(),
+});
 
 // Zod schema for a fitness log entry
 export const ExerciseLogSchema = z.object({
