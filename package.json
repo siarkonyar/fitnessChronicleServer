@@ -7,7 +7,8 @@
     "dev": "nodemon --exec ts-node src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "migrate:convert-sets": "node -r ts-node/register ./scripts/convertSets.ts"
+    "migrate:convert-sets": "node -r ts-node/register ./scripts/convertSets.ts",
+    "delete:todays-logs": "node -r ts-node/register ./scripts/deleteTodaysLogs.ts"
   },
   "keywords": [],
   "author": "",

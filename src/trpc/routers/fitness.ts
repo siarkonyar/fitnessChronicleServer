@@ -27,36 +27,28 @@ export const fitnessRouter = router({
                 createdAt: admin.firestore.FieldValue.serverTimestamp(),
             });
 
-            const shouldSkipAdd = MASTER_EXERCISE_NAMES_SET.has(
-              exerciseName.trim().toLowerCase()
-            );
-
-            if (shouldSkipAdd) {
-              console.log('Exercise name is in master list; skipping add');
-            } else {
-              const namesRef = firestore
+            const namesRef = firestore
                 .collection('users')
                 .doc(userId)
                 .collection('exerciseNames');
 
-              // Query to check if exerciseName already exists
-              const snapshot = await namesRef
-                  .where('name', '==', exerciseName)
-                  .limit(1)
-                  .get();
+            // Query to check if exerciseName already exists
+            const snapshot = await namesRef
+                .where('name', '==', exerciseName)
+                .limit(1)
+                .get();
 
-              if (!snapshot.empty) {
-                // Already exists
-                console.log('Exercise name already exists');
-              } else {
-                // Add new exercise name
-                const newNameRef = namesRef.doc();
-                await newNameRef.set({
-                  name: exerciseName,
-                  createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                });
-                console.log('Exercise name added successfully');
-              }
+            if (!snapshot.empty) {
+              // Already exists
+              console.log('Exercise name already exists');
+            } else {
+              // Add new exercise name
+              const newNameRef = namesRef.doc();
+              await newNameRef.set({
+                name: exerciseName,
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+              });
+              console.log('Exercise name added successfully');
             }
         }),
 
