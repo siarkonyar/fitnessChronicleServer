@@ -341,4 +341,60 @@ export const fitnessRouter = router({
                 message: 'Exercise name deleted successfully!',
             };
         }),
+    syncOfflineExercises : protectedProcedure
+        .input(z.array(ExerciseLogSchema))
+        .mutation(async ({ input, ctx }) => {
+            const { user, firestore } = ctx;
+            const userId = user.uid;
+            const exerciseLogs = input;
+
+            if (exerciseLogs.length === 0) return;
+
+            // Use batch operations for better performance
+            const batch = firestore.batch();
+            const exerciseNamesToAdd = new Set<string>();
+
+            // Process each exercise log
+            for (const exerciseLog of exerciseLogs) {
+                const newLogRef = firestore
+                    .collection('users')
+                    .doc(userId)
+                    .collection('fitnessLogs')
+                    .doc();
+
+                batch.set(newLogRef, {
+                    ...exerciseLog,
+                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+
+                exerciseNamesToAdd.add(exerciseLog.activity);
+            }
+
+            await batch.commit();
+
+            // Handle exercise names
+            const namesRef = firestore
+                .collection('users')
+                .doc(userId)
+                .collection('exerciseNames');
+
+            const namesBatch = firestore.batch();
+
+            for (const exerciseName of exerciseNamesToAdd) {
+                const snapshot = await namesRef
+                    .where('name', '==', exerciseName)
+                    .limit(1)
+                    .get();
+
+                if (snapshot.empty) {
+                    const newNameRef = namesRef.doc();
+                    namesBatch.set(newNameRef, {
+                        name: exerciseName,
+                        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                    });
+                }
+            }
+
+            await namesBatch.commit();
+        }),
 });
