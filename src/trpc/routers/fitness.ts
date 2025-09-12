@@ -226,18 +226,21 @@ export const fitnessRouter = router({
                 .collection('fitnessLogs')
                 .where('activity', '==', name)
                 .orderBy('createdAt', 'desc')
-                .limit(1)
+                .limit(4)
                 .get();
 
-            if (!orderedSnapshot.empty) {
-                const doc = orderedSnapshot.docs[0];
-                return ExerciseLogWithIdSchema.parse({
-                    id: doc.id,
-                    ...doc.data(),
-                });
+            if (orderedSnapshot.empty) {
+                return [];
             }
 
-            return null;
+            const logs = orderedSnapshot.docs.map(doc =>
+                ExerciseLogWithIdSchema.parse({
+                    id: doc.id,
+                    ...doc.data(),
+                })
+            );
+
+            return logs;
         }),
     /* getLatestExerciseByName : protectedProcedure
         .input(z.object({ name: z.string().min(1) }))
