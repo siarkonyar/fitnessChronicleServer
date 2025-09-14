@@ -213,7 +213,7 @@ export const fitnessRouter = router({
           };
         }),
 
-    getLatestExerciseByName : protectedProcedure
+    getLatestExercisesByName : protectedProcedure
         .input(z.object({ name: z.string().min(1) }))
         .query(async ({ input, ctx }) => {
             const { user, firestore } = ctx;
