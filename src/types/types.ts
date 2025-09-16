@@ -9,7 +9,7 @@ const FirestoreTimestampSchema = z.custom<Timestamp>(
 );
 
 export const SetSchema = z.object({
-  setType: z.enum(["warmup", "normal", "failure", "drop"]),
+  setType: z.enum(["warmup", "normal", "failure", "drop", "pr", "failedpr"]),
   measure: z.enum(["kg", "lbs", "sec", "distance", "step"]),
   value: z.string().optional(),
   reps: z.string().optional(),
